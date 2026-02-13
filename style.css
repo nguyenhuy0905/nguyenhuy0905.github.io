@@ -12,24 +12,30 @@
 html {
   background-color: var(--bg-dark);
   color: var(--color);
+  font-size: 12px;
 }
 header {
   font-size: 1.5rem;
   font-style: italic;
+  margin: 0em auto;
+}
+body {
+  padding: 0em 1%;
+  margin: 0;
 }
 footer {
   margin: 0.5em 0;
-  padding: 1em 1em;
+  padding: 1em;
   background-color: var(--bg);
 }
 main {
   background-color: var(--bg);
   padding: 1em 2em;
-
+  border-radius: 2em 2em 0em 0em;
 }
 h1 {
   color: var(--mauve);
-  padding-left: 2.5em;
+  padding-left: 1em;
 }
 h2 {
   color: var(--green);
@@ -39,6 +45,29 @@ h3 {
 }
 a {
   color: var(--blue);
+}
+nav {
+  background-color: var(--bg);
+  padding: 1em auto;
+  border-radius: 2em;
+}
+nav ul {
+  list-style: none;
+  letter-spacing: 0;
+}
+nav ul li {
+  display: inline-block;
+  padding: 0.5em 1em;
+}
+nav ul li:first-child {
+  padding-left: 0em;
+}
+h1 a {
+  color: var(--mauve);
+  text-decoration: none;
+}
+a.nav-a {
+  color: var(--mauve);
 }
 
 p.copyright {
