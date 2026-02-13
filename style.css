@@ -1,7 +1,4 @@
 :root {
-  margin-left: 1em;
-  margin-right: 1em;
-  margin-top: 1em;
   color-scheme: dark light;
   --red: light-dark(#d20f39, #f38ba8);
   --green: light-dark(#40a02b, #a6da95);
@@ -9,20 +6,30 @@
   --blue: light-dark(#1e66f5, #89b4fa);
   --color: light-dark(#4c4f69, #cdd6f4);
   --bg: light-dark(#eff1f5, #1e1e2e);
+  --bg-dark: light-dark(#e6e9ef, #181825);
   --copyright: light-dark(#6c6f85, #a6adc8);
 }
 html {
-  font-size: 16px;
-  background-color: var(--bg);
+  background-color: var(--bg-dark);
   color: var(--color);
 }
 header {
-  font-size: 24px;
+  font-size: 1.5rem;
   font-style: italic;
+}
+footer {
+  margin: 0.5em 0;
+  padding: 1em 1em;
+  background-color: var(--bg);
+}
+main {
+  background-color: var(--bg);
+  padding: 1em 2em;
+
 }
 h1 {
   color: var(--mauve);
-  text-align: center;
+  padding-left: 2.5em;
 }
 h2 {
   color: var(--green);
