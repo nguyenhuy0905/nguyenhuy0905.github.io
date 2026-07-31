@@ -7,7 +7,7 @@ def process_file(f, vars):
     is_processing_vars = True
     ret = ""
     for (num, line) in enumerate(f):
-        line = line.strip()
+        line = line[:len(line)-1]
         if is_processing_vars:
             # done processing variables
             if len(line) == 0:
