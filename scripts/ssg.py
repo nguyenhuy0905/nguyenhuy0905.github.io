@@ -94,8 +94,4 @@ if __name__ == "__main__":
         path = Path(sys.argv[2])
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(process_file(f, vars), encoding="utf-8")
-        print(f"Data written to {sys.argv[2]}\nFormatting...")
-        # format
-        Popen(["prettier", "-w", sys.argv[2]], stderr=sys.stderr).communicate()
-            
-        # print(process_file(f, vars))
+        print(f"Data written to {sys.argv[2]}")
