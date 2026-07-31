@@ -1,26 +1,16 @@
 CMD:=python3 scripts/ssg.py
 CONTENT_FILES:=index.html blog/index.html
 
-all: index blog
+all: index.html blog/index.html
 
-index: index.html
-
-index.html: header footer template/index.html template/index/content.html
+index.html: template/header.html template/footer.html template/index.html template/index/content.html
 	$(CMD) template/index.html index.html
 
-blog: blog/index.html blog/dev
-
-blog/index.html: header footer template/blog/index.html
+blog/index.html: template/header.html template/footer.html template/blog/index.html
 	$(CMD) template/blog/index.html blog/index.html
 
 blog/dev: header footer template/blog/dev/1-database.html
 	$(CMD) template/blog/dev/1-database.html blog/dev/1-database.html
-
-header: template/header.html meta
-
-footer: template/footer.html meta
-
-meta: template/meta.html
 
 .PHONY: format
 format:
