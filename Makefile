@@ -8,10 +8,13 @@ index: index.html
 index.html: header footer template/index.html template/index/content.html
 	$(CMD) template/index.html index.html
 
-blog: blog/index.html
+blog: blog/index.html blog/dev
 
 blog/index.html: header footer template/blog/index.html
 	$(CMD) template/blog/index.html blog/index.html
+
+blog/dev: header footer template/blog/dev/1-database.html
+	$(CMD) template/blog/dev/1-database.html blog/dev/1-database.html
 
 header: template/header.html meta
 

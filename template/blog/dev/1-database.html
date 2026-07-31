@@ -1,0 +1,171 @@
+title=My third or so attempt at making a database
+blog_title=My third or so attempt at making a database
+meta=!template/meta.html
+header=#template/header.html
+footer=#template/footer.html
+date=2026-07-30
+blog_header=!template/blog_title.html
+
+<!doctype html>
+%meta%
+<body>
+%header%
+<main>
+  <article>
+    %blog_header%
+    <section>
+      <h3>My history with a "database project"</h3>
+      <p>
+        As you can guess from the title, this is not my first time thinking
+        about making a database. I've tried ever since summer of 2024. Then again
+        in summer of 2025. And, like an yearly occurrence, I give a shot again
+        now, in summer of 2026.
+      </p>
+      <p>
+        It's kind of sad I never kept a log of what I do for the attempts in
+        2024 and 2025. The attempts "failed" (again, you could've already guessed),
+        but that doesn't mean I didn't learn anything. So this time, I want to
+        keep a log of what I do. I like writing things down on paper, sure, but
+        maybe by writing in this form, someone might find inspiration from what
+        I do?
+      </p>
+      <h4>First time trying</h4>
+      <p>
+        It was summer of 2024. I'm an unemployed first-year college student.
+        Not having a job to do in the summer means having a ton of time. Even
+        though I'd spent the 2 semester prior learning (and learning quite well,
+        if you ever trust grades reflect your actual abilities), I felt like I
+        couldn't get enough of coding. And I want to code <em>more</em>. As it
+        turned out, this wasn't good for me...
+      </p>
+      <p>
+        I "recruited" three of my friends, forming a little group on GitHub. I
+        made the project. At the time, all I really knew was C (or Java, which
+        I really didn't like). I actually knew quite a lot of C for a novice, I
+        must say. I could write Makefiles, I could structure projects, I could
+        turn on all the relevant compiler flags. Think about it, that's almost
+        all of the C you'll need for the vast majority of your toy projects.
+        And for a novice, I was quite good at using Git as well... or at least,
+        good enough that I can guide my other friends with it.
+      </p>
+      <p>
+        I know it's a bit hard to really put what I just said into perspective.
+        But, it was 2 years ago, and I have no remaining form of memoria for
+        the attempt. Yes, not even the Git repo. My memory is unreliable, too.
+        But, there are certain things that you just can't forget...
+      </p>
+      <p>
+        Back to topic. I had a small group that wanted to code a bit more. I
+        knew how to use C, and could guide others on some basics of C. I knew
+        how to use Git. Sounded like a smooth sailing trip. What could go
+        wrong?
+      </p>
+      <h4>First time stumbling</h4>
+      <p>
+        I loved shiny new things, especially if the shiny new thing promises a
+        way out of a problem. And in C, you meet the problem very quickly. Oh,
+        you want a dynamic array? Write your own. What'd you say, a <em>generic</em>
+        dynamic array? Well, you could try deal with macros I suppose... If only
+        there were a language, very compatible with C, shares a lot of the same
+        concepts with C, and has generic containers? That's exactly what C++
+        looked to me.
+      </p>
+      <p>
+        Now, I'm not here to hate on C++. It's probably the language I use the
+        most. And it's also a very deep hole, which does satisfy my nerd
+        requirement of feeling like I learn something even though that thing is
+        never getting put to use and I would forget about it in a few days. But
+        in this little story, the decision to jump boat from C to C++ proved to
+        be one of the many wrong choices I made in a very short period of time.
+      </p>
+      <p>
+        So, what was the state of the project when I decided to jump boat to
+        C++? I didn't even have a CLI working.
+      </p>
+      <p>
+        But, it's just a CLI, right? Even without a nice CLI parser, it's not
+        difficult to write a CLI in C. And if I planned to make a database,
+        I better knew how to make something as "simple" as a CLI...<br>
+        That project really stopped at the CLI.
+      </p>
+      <p>
+        Oh, but at the same time, I also switched from Makefile to CMake. And
+        I also added GoogleTest, even though I had nothing to test yet. But it
+        was just delaying the inevitable. That is, I realised all that time I
+        spent resulted in a barely functioning CLI, and nothing else. And with
+        that, my motivation for the project was pretty much dead.<br>
+        And I was busy with another project I came up with. At least I got that
+        to a somewhat functioning state.
+        <a href="https://github.com/nguyenhuy0905/rare">It was my regex engine</a>.
+      </p>
+      <p>
+        I wish I had something to show on here for this failed attempt. Too bad.
+      </p>
+    </section>
+    <section>
+      <h4 id="second-try">Second time's not the charm</h4>
+      <p>
+        The second attempt, I set out to do this on my own. Compared to the
+        first, I had accumulated more experience. I had two projects, both in
+        Rust, to a working state; the regex engine mentioned above, and the
+        capstone project for one of my classes.
+        <a href="https://github.com/nguyenhuy0905/gyat">Wow, I still have this
+        one</a>. I have a terrible habit of nuking any project I felt
+      "disappointed" about from the earth's surface, so it was fortunate this
+      one ended up successful for its purpose.
+      </p>
+      <p>
+        I considered myself the "leader" of that capstone project, which makes
+        a lot of sense: I came up with the idea, I designed practically every
+        thing, from how the CLI should look like, what the minimally functional
+        feature set is, how it keeps track of files... basically almost all of
+        the details. Looking back, it was a banger project. And it surely did
+        fill myself with confidence that I can do whatever I wish for (in
+        coding, at least) and succeed.<br>
+        It was another year of learning's worth, so I gained a lot of
+        experience as well. This time I got a CMake template that works
+        quite well, so no need to write much CMake again. And the template had
+        all the belts and whistles I could think of using; unit testing, CI,
+        automatic documentation generation, somewhat comprehensive build
+        instructions, integration with the <tt>conan</tt> package manager.<br>
+        I can spend a lot more time designing and coding now, not having to
+        worry about this bureaucracy called <em>the build system</em>.
+      </p>
+      <p>
+        Too bad, I made some more terrible choices. With too much time spent
+        designing, alongside the knowledge of my last failed attempt, I decided
+        to <em>go big</em>. Think of all the features I could, "design-pattern"
+        the code the moment I begin, and whatnot. This time I did get farther
+        than just the CLI. But not much. I had a lot of separate pieces that
+        couldn't work together. One moment I was coding one of the components,
+        the next I was doing another, just because some thought pop up.
+      </p>
+      <p>
+        And again came the inevitable. After a while, I realised I'd done
+        nothing worth showing (or so I thought).
+      </p>
+    </section>
+    <section>
+      <h3>Are you really sure third time's the charm?</h3>
+      <p>No. But I do have hope.</p>
+      <p>
+        By writing about it, it's already different than my last 2 attempts.
+        Even if my code fails, I will still have something tangible to show to
+        other people, or more importantly, to myself.
+      </p>
+      <p>
+        Really, for a toy project, the most I care about is to have fun coding.
+        And <a href="#second-try">from that second attempt</a>, I know that I
+        can't really theory-craft something intangible (intangible goal,
+        intangible scope, and many more intangible things).<br>
+        Best way to have fun? YOLO.
+      </p>
+      <p>
+        Currently, the repository is private. But in the following entries, I
+        will write about the development process.
+      </p>
+    </section>
+  </article>
+</main>
+%footer%
+</body>
