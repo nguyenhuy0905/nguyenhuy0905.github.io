@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused)]
-mod exe;
+mod ssg;
 mod block;
-use exe::Runner;
+use ssg::Runner;
 
 fn main() {
     let mut exe = Runner::new();
