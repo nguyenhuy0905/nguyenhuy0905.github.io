@@ -391,15 +391,42 @@ pub enum TokenType {
     Float(f64),
     // like an Id, but starts with a pound (#)
     Include(String),
+    // symbols
     // :=
     ColonEq,
     // =
     Eq,
     // ;
     Semicolon,
+    // +
+    Plus,
+    // -
+    Minus,
+    // *
+    Star,
+    // /
+    Slash,
+    // (
+    LParen,
+    // )
+    RParen,
+    // <
+    Less,
+    // >
+    Greater,
+    // <=
+    LessEq,
+    // >=
+    GreaterEq,
     // keywords
     // "yield"
     Yield,
+    // "and"
+    And,
+    // "or"
+    Or,
+    // "not"
+    Not,
     Eof,
 }
 
