@@ -2,7 +2,7 @@
 #![allow(unused)]
 use std::{
     collections::HashMap,
-    io::{BufRead, Read, Write},
+    io::{BufRead, BufReader, BufWriter, Read, Write},
     rc::Rc,
 };
 
@@ -22,11 +22,20 @@ struct Scope {
     parent: Option<usize>,
 }
 
+impl Scope {
+    pub fn new_root() -> Self {
+        Self {
+            vars: HashMap::new(),
+            parent: None,
+        }
+    }
+}
+
 impl Default for Runner {
     fn default() -> Self {
         return Self {
             curr_block: String::new(),
-            scopes: Vec::new(),
+            scopes: vec![Scope::new_root()],
             lex_state: LexState::Init,
         };
     }
@@ -37,8 +46,8 @@ impl Runner {
         Self::default()
     }
 
-    pub fn run(&mut self, input: impl Read, output: impl Write) {
-        todo!()
+    pub fn run(&mut self, input: impl Read, output: impl Write) -> Result<(), RunnerError> {
+        self.run_scope(0, BufReader::new(input), BufWriter::new(output))
     }
 
     fn run_scope(
@@ -46,92 +55,115 @@ impl Runner {
         curr_scope: usize,
         input: impl BufRead,
         mut output: impl Write,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<(), RunnerError> {
+        let mut last_line: usize = 0;
         for (row, line) in input.lines().enumerate() {
-            for (col, gr) in line?.grapheme_indices(true) {
+            for gr in line.map_err(|e| RunnerError::Io(e))?.graphemes(true) {
                 match self.lex_state {
                     LexState::Init => self.lex_init(gr, &mut output)?,
-                    _ => todo!(),
+                    LexState::EnterBlock => self.lex_enter_block(gr, &mut output)?,
+                    LexState::InBlock => self.lex_in_block(gr, &mut output)?,
+                    LexState::LeaveBlock => self.lex_leave_block(gr, &mut output)?,
+                    LexState::Escape => self.lex_escape(gr, &mut output)?,
                 }
             }
-            todo!()
+            last_line = row;
+        }
+        if matches!(self.lex_state, LexState::InBlock) {
+            return Err(RunnerError::UnclosedBlock {line: last_line});
         }
         Ok(())
     }
 
-    fn lex_init(&mut self, gr: &str, output: &mut impl Write) -> Result<(), std::io::Error> {
+    fn lex_init(&mut self, gr: &str, output: &mut impl Write) -> Result<(), RunnerError> {
         match gr {
             "{" => {
-                self.lex_state = LexState::FirstLBrace;
+                self.lex_state = LexState::EnterBlock;
             }
             "\\" => {
                 self.lex_state = LexState::Escape;
             }
             _ => {
-                output.write_all(gr.as_bytes())?;
+                Self::output_write_all(output, gr.as_bytes())?;
             }
         }
         Ok(())
     }
-    fn lex_first_lbrace(
-        &mut self,
-        gr: &str,
-        output: &mut impl Write,
-    ) -> Result<(), std::io::Error> {
+    fn lex_enter_block(&mut self, gr: &str, output: &mut impl Write) -> Result<(), RunnerError> {
         match gr {
-            "{" => {
-                self.lex_state = LexState::InBlock;
-            }
+            "{" => self.lex_state = LexState::InBlock,
             "\\" => {
-                output.write_all(b"{")?;
+                Self::output_write_all(output, b"{")?;
                 self.lex_state = LexState::Escape;
             }
             _ => {
-                output.write_all(b"{")?;
-                output.write_all(gr.as_bytes())?;
+                Self::output_write_all(output, b"{")?;
+                Self::output_write_all(output, gr.as_bytes())?;
+                self.lex_state = LexState::Init;
             }
         }
         Ok(())
     }
-    fn lex_in_block(&mut self, gr: &str, output: &mut impl Write) -> Result<(), std::io::Error> {
+    fn lex_escape(&mut self, gr: &str, output: &mut impl Write) -> Result<(), RunnerError> {
+        match gr {
+            "\\" => {
+                Self::output_write_all(output, b"\\")?;
+            }
+            "{" => {
+                Self::output_write_all(output, b"{")?;
+            }
+            // technically this one is not needed, but it's just for symmetry with the escape above
+            "}" => {
+                Self::output_write_all(output, b"}")?;
+            }
+            _ => {
+                Self::output_write_all(output, b"\\")?;
+                Self::output_write_all(output, gr.as_bytes())?;
+            }
+        }
+        self.lex_state = LexState::Init;
+        Ok(())
+    }
+    fn lex_in_block(&mut self, gr: &str, output: &mut impl Write) -> Result<(), RunnerError> {
         match gr {
             "}" => {
-                self.lex_state = LexState::FirstRBrace;
-            }
-            _ => todo!()
-        }
-        todo!()
-    }
-    fn lex_first_rbrace(
-        &mut self,
-        gr: &str,
-        output: &mut impl Write,
-    ) -> Result<(), std::io::Error> {
-        todo!()
-    }
-    fn lex_escape(&mut self, gr: &str, output: &mut impl Write) -> Result<(), std::io::Error> {
-        match gr {
-            "\\" => {
-                output.write_all(b"\\")?;
-            }
-            "\"" => {
-                output.write_all(b"\"")?;
-            }
-            // technically, the only thing really matters to escape is the right-brace
-            "{" => {
-                output.write_all(b"{")?;
-            }"}" => {
-                output.write_all(b"}")?;
+                self.lex_state = LexState::LeaveBlock;
             }
             _ => {
-                output.write_all(b"\\")?;
-                output.write_all(gr.as_bytes())?;
+                self.curr_block.push_str(gr);
             }
         }
         Ok(())
     }
-    fn lex_in_string(&mut self, gr: &str, output: &mut impl Write) -> Result<(), std::io::Error> {
-        todo!()
+    fn lex_leave_block(&mut self, gr: &str, output: &mut impl Write) -> Result<(), RunnerError> {
+        match gr {
+            "}" => {
+                self.lex_state = LexState::Init;
+                todo!("Execute block:\n{}", self.curr_block)
+            }
+            "\\" => {
+                Self::output_write_all(output, b"}")?;
+                self.lex_state = LexState::InBlock;
+            }
+            _ => {
+                Self::output_write_all(output, b"}")?;
+                Self::output_write_all(output, gr.as_bytes())?;
+                self.lex_state = LexState::InBlock;
+            }
+        }
+        Ok(())
+    }
+
+    fn output_write_all(output: &mut impl Write, value: &[u8]) -> Result<(), RunnerError> {
+        output.write_all(value).map_err(|e| RunnerError::Io(e))
+    }
+}
+
+#[derive(Debug)]
+pub enum RunnerError {
+    Io(std::io::Error),
+    UnclosedBlock {
+        line: usize,
     }
 }
 
@@ -139,19 +171,43 @@ impl Runner {
 enum LexState {
     // No block funsies
     Init,
-    // Receive one "{"
-    FirstLBrace,
+    // Receive first "{"
+    EnterBlock,
     // Receive second "{"
     InBlock,
-    // Receive one "}"
-    FirstRBrace,
-    // Second "}" to get out of block
-    // Receive a "\\" while in block
+    // Receive first "}"
+    LeaveBlock,
+    // Basically, "\{" or "\}" or "\\".
     Escape,
-    // In block, receive a "\\"
-    InBlockEscape,
-    // In block, receive a "\""
-    InString,
-    // In string, receive a "\\"
-    EscapeInString,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_literal() {
+        let mut exe = Runner::new();
+        let mut out: Vec<u8> = Vec::new();
+        exe.run("<h1>yield hello;</h1>".as_bytes(), &mut out);
+        assert_eq!("<h1>yield hello;</h1>", String::from_utf8(out).unwrap());
+    }
+    #[test]
+    fn test_escape() {
+        let mut exe = Runner::new();
+        let mut out: Vec<u8> = Vec::new();
+        exe.run("<h1>{\\{yield hello;}\\}</h1>".as_bytes(), &mut out);
+        assert_eq!("<h1>{{yield hello;}}</h1>", String::from_utf8(out).unwrap());
+    }
+    #[test]
+    fn test_unclosed_block() {
+        let mut exe = Runner::new();
+        let mut out: Vec<u8> = Vec::new();
+        let ret = exe.run("<h1>{{yield hello;}</h1>".as_bytes(), &mut out);
+        if !matches!(ret, Err(RunnerError::UnclosedBlock {line: 0})) {
+            panic!("{ret:?} does not error or does not match error")
+        }
+        // assert_matches!(ret, Err(RunnerError::UnclosedBlock {line: 0}));
+    }
+    // there's not much else to test at the moment
 }
