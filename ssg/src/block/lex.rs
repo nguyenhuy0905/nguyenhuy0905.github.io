@@ -56,7 +56,7 @@ impl Lex {
 
         // not yet done...
         match self.state {
-            LexState::Init => Ok(()),
+            LexState::Init => {},
             LexState::Id => {
                 if let Some(kw) = Self::check_for_keyword(&self.curr_token) {
                     self.tokens.push(kw);
@@ -64,28 +64,26 @@ impl Lex {
                     self.tokens
                         .push(TokenType::Id(String::from_iter(self.curr_token.drain(..))));
                 }
-                Ok(())
             }
             LexState::Int | LexState::IntExponent => {
                 println!("{}", self.curr_token);
                 self.tokens.push(TokenType::Int(
                     Self::int_from_str(&self.curr_token).unwrap(),
                 ));
-                Ok(())
             }
             LexState::Float | LexState::FloatExponent => {
                 self.tokens
                     .push(TokenType::Float(f64::from_str(&self.curr_token).unwrap()));
-                Ok(())
             }
             LexState::Include => {
                 self.tokens.push(TokenType::Include(String::from_iter(
                     self.curr_token.drain(..),
                 )));
-                Ok(())
             }
-            LexState::LitStr | LexState::Escape => Err(LexError::UnclosedStr),
+            LexState::LitStr | LexState::Escape => return Err(LexError::UnclosedStr),
         }
+        self.tokens.push(TokenType::Eof);
+        Ok(())
     }
 
     fn lex_init(&mut self, gr: &str) -> Result<(), LexError> {
@@ -402,6 +400,7 @@ pub enum TokenType {
     // keywords
     // "yield"
     Yield,
+    Eof,
 }
 
 enum LexState {
@@ -440,7 +439,8 @@ mod test {
                 TokenType::Id(String::from("hello")),
                 TokenType::Eq,
                 TokenType::LitStr(String::from("hello")),
-                TokenType::Semicolon
+                TokenType::Semicolon,
+                TokenType::Eof,
             ]
         );
     }
@@ -454,7 +454,8 @@ mod test {
             [
                 TokenType::Yield,
                 TokenType::LitStr(String::from("hello")),
-                TokenType::Semicolon
+                TokenType::Semicolon,
+                TokenType::Eof,
             ]
         );
     }
@@ -473,7 +474,8 @@ mod test {
                 TokenType::Float(123000.0),
                 TokenType::Int(123456789),
                 TokenType::Int(123),
-                TokenType::Float(0.456)
+                TokenType::Float(0.456),
+                TokenType::Eof,
             ]
         );
     }
