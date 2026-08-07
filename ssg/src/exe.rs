@@ -53,12 +53,13 @@ impl Runner {
     fn run_scope(
         &mut self,
         curr_scope: usize,
-        input: impl BufRead,
+        mut input: impl BufRead,
         mut output: impl Write,
     ) -> Result<(), RunnerError> {
-        let mut last_line: usize = 0;
-        for (row, line) in input.lines().enumerate() {
-            for gr in line.map_err(|e| RunnerError::Io(e))?.graphemes(true) {
+        let mut row: usize = 0;
+        let mut line = String::new();
+        while input.read_line(&mut line).map_err(|e| RunnerError::Io(e))? > 0 {
+            for gr in line.graphemes(true) {
                 match self.lex_state {
                     LexState::Init => self.lex_init(gr, &mut output)?,
                     LexState::EnterBlock => self.lex_enter_block(gr, &mut output)?,
@@ -67,10 +68,11 @@ impl Runner {
                     LexState::Escape => self.lex_escape(gr, &mut output)?,
                 }
             }
-            last_line = row;
+            row = row + 1;
+            line.clear();
         }
         if matches!(self.lex_state, LexState::InBlock) {
-            return Err(RunnerError::UnclosedBlock {line: last_line});
+            return Err(RunnerError::UnclosedBlock { line: row });
         }
         Ok(())
     }
@@ -139,7 +141,8 @@ impl Runner {
         match gr {
             "}" => {
                 self.lex_state = LexState::Init;
-                todo!("Execute block:\n{}", self.curr_block)
+                todo!("Execute block:\n{}", self.curr_block);
+                self.curr_block.clear();
             }
             "\\" => {
                 Self::output_write_all(output, b"}")?;
@@ -162,9 +165,7 @@ impl Runner {
 #[derive(Debug)]
 pub enum RunnerError {
     Io(std::io::Error),
-    UnclosedBlock {
-        line: usize,
-    }
+    UnclosedBlock { line: usize },
 }
 
 /// Think of the lexer as a state machine.
@@ -204,7 +205,7 @@ mod test {
         let mut exe = Runner::new();
         let mut out: Vec<u8> = Vec::new();
         let ret = exe.run("<h1>{{yield hello;}</h1>".as_bytes(), &mut out);
-        if !matches!(ret, Err(RunnerError::UnclosedBlock {line: 0})) {
+        if !matches!(ret, Err(RunnerError::UnclosedBlock { line: 1 })) {
             panic!("{ret:?} does not error or does not match error")
         }
         // assert_matches!(ret, Err(RunnerError::UnclosedBlock {line: 0}));
