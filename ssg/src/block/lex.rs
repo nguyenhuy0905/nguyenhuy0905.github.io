@@ -56,7 +56,7 @@ impl Lex {
 
         // not yet done...
         match self.state {
-            LexState::Init => {},
+            LexState::Init => {}
             LexState::Id => {
                 if let Some(kw) = Self::check_for_keyword(&self.curr_token) {
                     self.tokens.push(kw);
