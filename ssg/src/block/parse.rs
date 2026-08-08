@@ -64,7 +64,6 @@ impl Parse {
         match tokens.pop() {
             Some(TokenType::Id(s)) => return Ok(ExprKind::Id(s)),
             Some(TokenType::LitStr(s)) => return Ok(ExprKind::LitStr(s)),
-            Some(TokenType::Include(s)) => return Ok(ExprKind::Include(s)),
             Some(TokenType::Int(i)) => return Ok(ExprKind::Int(i)),
             Some(TokenType::Float(f)) => return Ok(ExprKind::Float(f)),
             None => unreachable!(),
@@ -77,7 +76,6 @@ impl Parse {
 pub enum ExprKind {
     Id(String),
     LitStr(String),
-    Include(String),
     Int(u64),
     Float(f64),
 }
@@ -104,14 +102,12 @@ mod test {
             TokenType::LitStr("goodbye".into()),
             TokenType::Int(69),
             TokenType::Float(42.0),
-            TokenType::Include("stdio.html".into()),
         ];
         let expect = [
             ExprKind::Id("hello".into()),
             ExprKind::LitStr("goodbye".into()),
             ExprKind::Int(69),
             ExprKind::Float(42.0),
-            ExprKind::Include("stdio.html".into()),
         ];
 
         for (tok, expect) in tokens.into_iter().zip(expect.into_iter()) {

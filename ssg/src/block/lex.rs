@@ -42,9 +42,6 @@ impl Lex {
                 LexState::FloatExponent => {
                     self.lex_float_exponent(gr)?;
                 }
-                LexState::Include => {
-                    self.lex_include(gr)?;
-                }
                 LexState::LitStr => {
                     self.lex_lit_str(gr)?;
                 }
@@ -75,11 +72,6 @@ impl Lex {
                 self.tokens
                     .push(TokenType::Float(f64::from_str(&self.curr_token).unwrap()));
             }
-            LexState::Include => {
-                self.tokens.push(TokenType::Include(String::from_iter(
-                    self.curr_token.drain(..),
-                )));
-            }
             LexState::LitStr | LexState::Escape => return Err(LexError::UnclosedStr),
         }
         self.tokens.push(TokenType::Eof);
@@ -99,7 +91,6 @@ impl Lex {
         if let Ok(c) = char::from_str(gr) {
             match c {
                 '"' => self.state = LexState::LitStr,
-                '#' => self.state = LexState::Include,
                 '=' => self.tokens.push(TokenType::Eq),
                 ':' => todo!("colon-equal state where?"),
                 ';' => self.tokens.push(TokenType::Semicolon),
@@ -119,6 +110,7 @@ impl Lex {
                 ')' => self.tokens.push(TokenType::RParen),
                 '<' => todo!("Add a less-than state, 'cuz <= exists"),
                 '>' => todo!("Add a less-than state, 'cuz >= exists"),
+                '#' => self.tokens.push(TokenType::Pound),
                 _ => return Err(LexError::InvalidToken(String::from(c))),
             }
         }
@@ -281,24 +273,6 @@ impl Lex {
         Ok(())
     }
 
-    fn lex_include(&mut self, gr: &str) -> Result<(), LexError> {
-        if gr.chars().all(|c| c.is_ascii_whitespace()) {
-            self.state = LexState::Init;
-            self.tokens.push(TokenType::Include(String::from_iter(
-                self.curr_token.drain(..),
-            )));
-            return Ok(());
-        }
-        if gr.chars().all(|c| (c == '_') | c.is_ascii_alphanumeric()) {
-            assert!(!self.curr_token.is_empty());
-            self.curr_token.push_str(gr);
-            return Ok(());
-        }
-        // otherwise, defer to Init
-        self.state = LexState::Init;
-        self.lex_init(gr)
-    }
-
     fn lex_lit_str(&mut self, gr: &str) -> Result<(), LexError> {
         match char::from_str(gr) {
             Ok('"') => {
@@ -390,8 +364,6 @@ pub enum TokenType {
     LitStr(String),
     Int(u64),
     Float(f64),
-    // like an Id, but starts with a pound (#)
-    Include(String),
     // symbols
     // :=
     ColonEq,
@@ -419,6 +391,8 @@ pub enum TokenType {
     LessEq,
     // >=
     GreaterEq,
+    // #
+    Pound,
     // keywords
     // "yield"
     Yield,
@@ -438,7 +412,6 @@ enum LexState {
     Float,
     IntExponent,
     FloatExponent,
-    Include,
     LitStr,
     // During LitStr, meet a "\\"
     Escape,
