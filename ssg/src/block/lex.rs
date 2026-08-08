@@ -119,23 +119,23 @@ impl Lex {
     }
 
     fn lex_id(&mut self, gr: &str) -> Result<(), LexError> {
-        if gr.chars().all(|c| c.is_ascii_whitespace()) {
-            self.state = LexState::Init;
-            if let Some(kw) = Self::check_for_keyword(&self.curr_token) {
-                self.tokens.push(kw);
-                self.curr_token.clear();
-            } else {
-                self.tokens
-                    .push(TokenType::Id(String::from_iter(self.curr_token.drain(..))));
-            }
-            return Ok(());
-        }
         if gr.chars().all(|c| (c == '_') | c.is_ascii_alphanumeric()) {
             assert!(!self.curr_token.is_empty());
             self.curr_token.push_str(gr);
             return Ok(());
         }
+
         // otherwise, defer to Init
+        assert!(!self.curr_token.is_empty());
+        match Self::check_for_keyword(&self.curr_token) {
+            Some(kw) => {
+                self.tokens.push(kw);
+                self.curr_token.clear();
+            }
+            None => self
+                .tokens
+                .push((TokenType::Id(String::from_iter(self.curr_token.drain(..))))),
+        }
         self.state = LexState::Init;
         self.lex_init(gr)
     }
