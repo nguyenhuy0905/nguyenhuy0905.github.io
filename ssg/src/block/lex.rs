@@ -111,6 +111,14 @@ impl Lex {
                     self.curr_token.push(c);
                     self.state = LexState::Float;
                 }
+                '+' => self.tokens.push(TokenType::Plus),
+                '-' => self.tokens.push(TokenType::Minus),
+                '*' => self.tokens.push(TokenType::Star),
+                '/' => self.tokens.push(TokenType::Slash),
+                '(' => self.tokens.push(TokenType::LParen),
+                ')' => self.tokens.push(TokenType::RParen),
+                '<' => todo!("Add a less-than state, 'cuz <= exists"),
+                '>' => todo!("Add a less-than state, 'cuz >= exists"),
                 _ => return Err(LexError::InvalidToken(String::from(c))),
             }
         }
