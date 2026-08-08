@@ -154,18 +154,6 @@ impl Lex {
             Err(e) => Err(LexError::InvalidToken(gr.into())),
         }?;
 
-        if c.is_ascii_whitespace() {
-            self.state = LexState::Init;
-            self.tokens.push(TokenType::Int(
-                u64::from_str(&self.curr_token).map_err(|e| LexError::ParseInt(e))?,
-            ));
-            self.curr_token.clear();
-            return Ok(());
-        }
-        if !(c.is_digit(10) || matches!(c, '.' | '_' | 'e')) {
-            return Err(LexError::InvalidToken(gr.into()));
-        }
-
         match c {
             '0'..='9' => {
                 self.curr_token.push(c);
@@ -181,7 +169,15 @@ impl Lex {
                 self.state = LexState::IntExponent;
                 self.curr_token.push(c);
             }
-            _ => unreachable!("Not 0-9, . or e: {c}"),
+            _ => {
+                self.state = LexState::Init;
+                self.tokens.push(TokenType::Int(
+                    u64::from_str(&self.curr_token).map_err(|e| LexError::ParseInt(e))?,
+                ));
+                self.curr_token.clear();
+                return self.lex_init(gr);
+                // return Ok(());
+            } // _ => unreachable!("Not 0-9, . or e: {c}"),
         }
 
         Ok(())
@@ -193,17 +189,6 @@ impl Lex {
             Err(e) => Err(LexError::InvalidToken(gr.into())),
         }?;
 
-        if c.is_ascii_whitespace() {
-            self.state = LexState::Init;
-            self.tokens.push(TokenType::Float(
-                f64::from_str(&self.curr_token).map_err(|e| LexError::ParseFloat(e))?,
-            ));
-            self.curr_token.clear();
-            return Ok(());
-        }
-        if !(c.is_digit(10) || matches!(c, '_' | 'e')) {
-            return Err(LexError::InvalidToken(gr.into()));
-        }
         match c {
             '0'..='9' => {
                 self.curr_token.push(c);
@@ -215,7 +200,15 @@ impl Lex {
                 self.state = LexState::FloatExponent;
                 self.curr_token.push(c);
             }
-            _ => unreachable!("Not 0-9, . or e: {c}"),
+            _ => {
+                self.state = LexState::Init;
+                self.tokens.push(TokenType::Float(
+                    f64::from_str(&self.curr_token).map_err(|e| LexError::ParseFloat(e))?,
+                ));
+                self.curr_token.clear();
+                return self.lex_init(gr);
+                // return Ok(());
+            }
         }
 
         Ok(())
@@ -227,20 +220,6 @@ impl Lex {
             Err(e) => Err(LexError::InvalidToken(gr.into())),
         }?;
 
-        if c.is_ascii_whitespace() {
-            assert!(!self.curr_token.is_empty());
-            // no digits after 'e'
-            if self.curr_token.chars().rev().next().unwrap() == 'e' {
-                return Err(LexError::InvalidToken(std::mem::take(&mut self.curr_token)));
-            }
-
-            self.state = LexState::Init;
-            self.tokens
-                .push(TokenType::Int(Self::int_from_str(&self.curr_token)?));
-            self.curr_token.clear();
-            return Ok(());
-        }
-
         match c {
             '0'..='9' => {
                 self.curr_token.push(c);
@@ -249,7 +228,17 @@ impl Lex {
                 // discard
             }
             _ => {
-                return Err(LexError::InvalidToken(c.into()));
+                assert!(!self.curr_token.is_empty());
+                // no digits after 'e'
+                if self.curr_token.chars().rev().next().unwrap() == 'e' {
+                    return Err(LexError::InvalidToken(std::mem::take(&mut self.curr_token)));
+                }
+
+                self.state = LexState::Init;
+                self.tokens
+                    .push(TokenType::Int(Self::int_from_str(&self.curr_token)?));
+                self.curr_token.clear();
+                return self.lex_init(gr);
             }
         }
 
@@ -351,10 +340,14 @@ impl Lex {
     fn check_for_keyword(token: &str) -> Option<TokenType> {
         match token {
             "yield" => Some(TokenType::Yield),
+            "and" => Some(TokenType::Yield),
+            "or" => Some(TokenType::Yield),
+            "not" => Some(TokenType::Yield),
             _ => None,
         }
     }
 
+    /// So, according to Rust's u64::from_str, 12e3 is not a valid integer.
     fn int_from_str(s: &str) -> Result<u64, LexError> {
         let e_idx = s.find('e');
 
@@ -510,6 +503,21 @@ mod test {
                 TokenType::Int(123456789),
                 TokenType::Int(123),
                 TokenType::Float(0.456),
+                TokenType::Eof,
+            ]
+        );
+    }
+    #[test]
+    fn parse_expr() {
+        let test_str = "1.0+2.0";
+        let mut lex = Lex::new();
+        assert_eq!(lex.lex(test_str), Ok(()));
+        assert_eq!(
+            lex.tokens,
+            [
+                TokenType::Float(1.0),
+                TokenType::Plus,
+                TokenType::Float(2.0),
                 TokenType::Eof,
             ]
         );
