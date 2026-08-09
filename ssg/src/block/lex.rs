@@ -48,6 +48,9 @@ impl Lex {
                 LexState::Escape => {
                     self.lex_escape(gr)?;
                 }
+                LexState::Less => self.lex_less(gr)?,
+                LexState::Greater => self.lex_greater(gr)?,
+                LexState::Colon => self.lex_colon(gr)?,
             }
         }
 
@@ -73,6 +76,13 @@ impl Lex {
                     .push(TokenType::Float(f64::from_str(&self.curr_token).unwrap()));
             }
             LexState::LitStr | LexState::Escape => return Err(LexError::UnclosedStr),
+            LexState::Less => {
+                self.tokens.push(TokenType::Less);
+            }
+            LexState::Greater => {
+                self.tokens.push(TokenType::Greater);
+            }
+            LexState::Colon => return Err(LexError::InvalidToken(String::from(":"))),
         }
         self.tokens.push(TokenType::Eof);
         Ok(())
@@ -92,7 +102,7 @@ impl Lex {
             match c {
                 '"' => self.state = LexState::LitStr,
                 '=' => self.tokens.push(TokenType::Eq),
-                ':' => todo!("colon-equal state where?"),
+                ':' => self.state = LexState::Colon,
                 ';' => self.tokens.push(TokenType::Semicolon),
                 '0'..='9' => {
                     self.curr_token.push(c);
@@ -108,6 +118,8 @@ impl Lex {
                 '/' => self.tokens.push(TokenType::Slash),
                 '(' => self.tokens.push(TokenType::LParen),
                 ')' => self.tokens.push(TokenType::RParen),
+                '{' => self.tokens.push(TokenType::LBrace),
+                '}' => self.tokens.push(TokenType::RBrace),
                 '<' => todo!("Add a less-than state, 'cuz <= exists"),
                 '>' => todo!("Add a less-than state, 'cuz >= exists"),
                 '#' => self.tokens.push(TokenType::Pound),
@@ -310,6 +322,46 @@ impl Lex {
         Ok(())
     }
 
+    fn lex_less(&mut self, gr: &str) -> Result<(), LexError> {
+        match char::from_str(gr) {
+            Ok('=') => {
+                self.tokens.push(TokenType::LessEq);
+                self.state = LexState::Init;
+                Ok(())
+            }
+            _ => {
+                self.tokens.push(TokenType::Less);
+                self.state = LexState::Init;
+                self.lex_init(gr)
+            }
+        }
+    }
+
+    fn lex_greater(&mut self, gr: &str) -> Result<(), LexError> {
+        match char::from_str(gr) {
+            Ok('=') => {
+                self.tokens.push(TokenType::GreaterEq);
+                self.state = LexState::Init;
+                Ok(())
+            }
+            _ => {
+                self.tokens.push(TokenType::Greater);
+                self.state = LexState::Init;
+                self.lex_init(gr)
+            }
+        }
+    }
+
+    /// At the moment, can only be followed by "=". Even whitespaces are not valid.
+    fn lex_colon(&mut self, gr: &str) -> Result<(), LexError> {
+        if gr != "=" {
+            return Err(LexError::InvalidToken(gr.into()));
+        }
+        self.tokens.push(TokenType::ColonEq);
+
+        Ok(())
+    }
+
     /// Either return a keyword token, None
     fn check_for_keyword(token: &str) -> Option<TokenType> {
         match token {
@@ -383,6 +435,10 @@ pub enum TokenType {
     LParen,
     // )
     RParen,
+    // {
+    LBrace,
+    // }
+    RBrace,
     // <
     Less,
     // >
@@ -413,6 +469,9 @@ enum LexState {
     IntExponent,
     FloatExponent,
     LitStr,
+    Less,
+    Greater,
+    Colon,
     // During LitStr, meet a "\\"
     Escape,
 }
