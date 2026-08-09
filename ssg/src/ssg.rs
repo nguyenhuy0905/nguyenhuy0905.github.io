@@ -15,6 +15,8 @@ pub struct Runner {
     curr_block: String,
     scopes: Vec<Scope>,
     lex_state: LexState,
+    // since "{" and "}" also have semantic meanings in block-code
+    block_nest: usize,
 }
 
 struct Scope {
@@ -37,6 +39,7 @@ impl Default for Runner {
             curr_block: String::new(),
             scopes: vec![Scope::new_root()],
             lex_state: LexState::Init,
+            block_nest: 0,
         };
     }
 }
@@ -93,7 +96,9 @@ impl Runner {
     }
     fn lex_enter_block(&mut self, gr: &str, output: &mut impl Write) -> Result<(), RunnerError> {
         match gr {
-            "{" => self.lex_state = LexState::InBlock,
+            "{" => {
+                self.lex_state = LexState::InBlock;
+            }
             "\\" => {
                 Self::output_write_all(output, b"{")?;
                 self.lex_state = LexState::Escape;
@@ -128,8 +133,17 @@ impl Runner {
     }
     fn lex_in_block(&mut self, gr: &str, output: &mut impl Write) -> Result<(), RunnerError> {
         match gr {
+            "{" => {
+                self.block_nest = self.block_nest + 1;
+                self.curr_block.push_str(gr);
+            }
             "}" => {
-                self.lex_state = LexState::LeaveBlock;
+                if self.block_nest == 0 {
+                    self.lex_state = LexState::LeaveBlock;
+                } else {
+                    self.block_nest = self.block_nest - 1;
+                    self.curr_block.push_str(gr);
+                }
             }
             _ => {
                 self.curr_block.push_str(gr);
@@ -140,6 +154,7 @@ impl Runner {
     fn lex_leave_block(&mut self, gr: &str, output: &mut impl Write) -> Result<(), RunnerError> {
         match gr {
             "}" => {
+                assert!(self.block_nest == 0);
                 self.lex_state = LexState::Init;
                 todo!("Execute block:\n{}", self.curr_block);
                 self.curr_block.clear();
@@ -210,5 +225,14 @@ mod test {
         }
         // assert_matches!(ret, Err(RunnerError::UnclosedBlock {line: 0}));
     }
+    // #[test]
+    // fn block_in_block() {
+    //     let mut exe = Runner::new();
+    //     let mut out: Vec<u8> = Vec::new();
+    //     // at the moment of writing this, it will panic because we don't have a way to execute
+    //     // blocks yet.
+    //     // But, the panic should say it's trying to execute " {{yield sus;}}"
+    //     exe.run("<h1>hello {{ {{yield sus;}} }}</h1>".as_bytes(), &mut out);
+    // }
     // there's not much else to test at the moment
 }
