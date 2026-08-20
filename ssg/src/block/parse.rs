@@ -17,6 +17,7 @@ impl Parse {
         Self::default()
     }
 
+    /// `tokens` are in reverse order; that is, `tokens.pop` should return the first token.
     pub fn parse(&mut self, mut tokens: Vec<TokenType>) -> Result<(), ParseError> {
         tokens.reverse();
         while (tokens.iter().rev().next() != Some(&TokenType::Eof)) {
@@ -38,17 +39,17 @@ impl Parse {
         }
         // todo!()
     }
-    
+
     fn parse_yield(tokens: &mut Vec<TokenType>) -> Result<StmtKind, ParseError> {
         let yield_result = Self::parse_expr(tokens)?;
         match tokens.pop() {
-            Some(TokenType::Semicolon) => {},
+            Some(TokenType::Semicolon) => {}
             Some(tok) => return Err(ParseError::Unexpected(tok)),
             None => return Err(ParseError::ExpectToken),
         }
         Ok(StmtKind::Yield(yield_result))
     }
-    
+
     fn parse_stmt_expr(tokens: &mut Vec<TokenType>) -> Result<StmtKind, ParseError> {
         todo!()
     }
@@ -66,6 +67,14 @@ impl Parse {
             Some(TokenType::LitStr(s)) => return Ok(ExprKind::LitStr(s)),
             Some(TokenType::Int(i)) => return Ok(ExprKind::Int(i)),
             Some(TokenType::Float(f)) => return Ok(ExprKind::Float(f)),
+            Some(TokenType::LParen) => {
+                let exp = Self::parse_expr(tokens)?;
+                match tokens.pop() {
+                    Some(TokenType::RParen) => return Ok(exp),
+                    None => return Err(ParseError::ExpectToken),
+                    Some(tok) => return Err(ParseError::Unexpected(tok)),
+                }
+            }
             None => unreachable!(),
             Some(tok) => return Err(ParseError::Unexpected(tok)),
         }
@@ -74,6 +83,7 @@ impl Parse {
 
 #[derive(Debug, PartialEq)]
 pub enum ExprKind {
+    Unary(UnaryOp, Box<ExprKind>),
     Id(String),
     LitStr(String),
     Int(u64),
@@ -84,6 +94,14 @@ pub enum StmtKind {
     // an expr, followed by semicolon
     Expr(ExprKind),
     Yield(ExprKind),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum UnaryOp {
+    // "or" keyword
+    Or,
+    // '#' symbol
+    Include,
 }
 
 #[derive(Debug)]
@@ -115,5 +133,18 @@ mod test {
             let prim = Parse::parse_expr_primary(&mut tokvec).unwrap();
             assert_eq!(prim, expect);
         }
+    }
+
+    #[test]
+    fn parens() {
+        let mut tokens = vec![
+            TokenType::LParen,
+            TokenType::LitStr("hello".into()),
+            TokenType::RParen,
+        ];
+        tokens.reverse();
+        // let expect = ExprKind::LitStr("hello".into());
+        let prim = Parse::parse_expr_primary(&mut tokens).unwrap();
+        assert_eq!(prim, ExprKind::LitStr("hello".into()));
     }
 }
