@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused)]
 use super::lex::TokenType;
+use std::cell::Cell;
 
 pub struct Parse {
     stmts: Vec<StmtKind>,
@@ -77,6 +78,21 @@ impl Parse {
             }
             None => unreachable!(),
             Some(tok) => return Err(ParseError::Unexpected(tok)),
+        }
+    }
+
+    /// If `token` is an operator, returns a pair of numbers indicating the operator's precedence.
+    /// Higher number means higher precedence.
+    /// If the right-hand-side number is bigger, the operator is right-associated, and
+    /// left-associated otherwise. There isn't really a case where the two numbers are equal.
+    /// Unary operators will be (0, 1).
+    fn pratt_order(token: &TokenType) -> Option<(usize, usize)> {
+        todo!();
+        match token {
+            &TokenType::ColonEq | &TokenType::Eq => Some((0, 1)),
+            // &TokenType::Plus | &TokenType::Minus => Some((2, 1)),
+            // &TokenType::Star | &TokenType::Slash => Some((4, 3)),
+            _ => None
         }
     }
 }
