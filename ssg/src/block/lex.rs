@@ -16,41 +16,60 @@ pub struct Lex {
     curr_token: String,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Pos {
+    line: usize,
+    column: usize,
+}
+
 impl Lex {
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn lex(&mut self, input: &str) -> Result<(), LexError> {
-        for gr in input.graphemes(true) {
+        let mut pos = Pos { line: 0, column: 0 };
+        for (lnum, cnum, gr) in input
+            .lines()
+            .enumerate()
+            .map(|(lnum, line)| {
+                line.grapheme_indices(true)
+                    .map(move |(cnum, gr)| (lnum + 1, cnum + 1, gr))
+            })
+            .flatten()
+        {
+            pos = Pos {
+                line: lnum,
+                column: cnum,
+            };
             match self.state {
                 LexState::Init => {
-                    self.lex_init(gr)?;
+                    self.lex_init(gr, pos)?;
                 }
                 LexState::Id => {
-                    self.lex_id(gr)?;
+                    self.lex_id(gr, pos)?;
                 }
                 LexState::Int => {
-                    self.lex_int(gr)?;
+                    self.lex_int(gr, pos)?;
                 }
                 LexState::Float => {
-                    self.lex_float(gr)?;
+                    self.lex_float(gr, pos)?;
                 }
                 LexState::IntExponent => {
-                    self.lex_int_exponent(gr)?;
+                    self.lex_int_exponent(gr, pos)?;
                 }
                 LexState::FloatExponent => {
-                    self.lex_float_exponent(gr)?;
+                    self.lex_float_exponent(gr, pos)?;
                 }
                 LexState::LitStr => {
-                    self.lex_lit_str(gr)?;
+                    self.lex_lit_str(gr, pos)?;
                 }
                 LexState::Escape => {
-                    self.lex_escape(gr)?;
+                    self.lex_escape(gr, pos)?;
                 }
-                LexState::Less => self.lex_less(gr)?,
-                LexState::Greater => self.lex_greater(gr)?,
-                LexState::Colon => self.lex_colon(gr)?,
+                LexState::Less => self.lex_less(gr, pos)?,
+                LexState::Greater => self.lex_greater(gr, pos)?,
+                LexState::Colon => self.lex_colon(gr, pos)?,
             }
         }
 
@@ -68,27 +87,37 @@ impl Lex {
             LexState::Int | LexState::IntExponent => {
                 println!("{}", self.curr_token);
                 self.tokens.push(TokenType::Int(
-                    Self::int_from_str(&self.curr_token).unwrap(),
+                    Self::int_from_str(&self.curr_token, pos).unwrap(),
                 ));
             }
             LexState::Float | LexState::FloatExponent => {
                 self.tokens
                     .push(TokenType::Float(f64::from_str(&self.curr_token).unwrap()));
             }
-            LexState::LitStr | LexState::Escape => return Err(LexError::UnclosedStr),
+            LexState::LitStr | LexState::Escape => {
+                return Err(LexError {
+                    kind: LexErrorKind::UnclosedStr,
+                    pos,
+                });
+            }
             LexState::Less => {
                 self.tokens.push(TokenType::Less);
             }
             LexState::Greater => {
                 self.tokens.push(TokenType::Greater);
             }
-            LexState::Colon => return Err(LexError::InvalidToken(String::from(":"))),
+            LexState::Colon => {
+                return Err(LexError {
+                    kind: LexErrorKind::InvalidToken(String::from(":")),
+                    pos,
+                });
+            }
         }
         self.tokens.push(TokenType::Eof);
         Ok(())
     }
 
-    fn lex_init(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_init(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         if gr.chars().all(|c: char| c.is_ascii_whitespace()) {
             return Ok(());
         }
@@ -123,14 +152,19 @@ impl Lex {
                 '<' => todo!("Add a less-than state, 'cuz <= exists"),
                 '>' => todo!("Add a less-than state, 'cuz >= exists"),
                 '#' => self.tokens.push(TokenType::Pound),
-                _ => return Err(LexError::InvalidToken(String::from(c))),
+                _ => {
+                    return Err(LexError {
+                        kind: LexErrorKind::InvalidToken(String::from(c)),
+                        pos,
+                    });
+                }
             }
         }
 
         Ok(())
     }
 
-    fn lex_id(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_id(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         if gr.chars().all(|c| (c == '_') | c.is_ascii_alphanumeric()) {
             assert!(!self.curr_token.is_empty());
             self.curr_token.push_str(gr);
@@ -149,13 +183,16 @@ impl Lex {
                 .push((TokenType::Id(String::from_iter(self.curr_token.drain(..))))),
         }
         self.state = LexState::Init;
-        self.lex_init(gr)
+        self.lex_init(gr, pos)
     }
 
-    fn lex_int(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_int(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         let c = match char::from_str(gr) {
             Ok(c) => Ok(c),
-            Err(e) => Err(LexError::InvalidToken(gr.into())),
+            Err(e) => Err(LexError {
+                kind: LexErrorKind::InvalidToken(gr.into()),
+                pos,
+            }),
         }?;
 
         match c {
@@ -175,11 +212,15 @@ impl Lex {
             }
             _ => {
                 self.state = LexState::Init;
-                self.tokens.push(TokenType::Int(
-                    u64::from_str(&self.curr_token).map_err(|e| LexError::ParseInt(e))?,
-                ));
+                self.tokens
+                    .push(TokenType::Int(u64::from_str(&self.curr_token).map_err(
+                        |e| LexError {
+                            kind: LexErrorKind::ParseInt(e),
+                            pos,
+                        },
+                    )?));
                 self.curr_token.clear();
-                return self.lex_init(gr);
+                return self.lex_init(gr, pos);
                 // return Ok(());
             } // _ => unreachable!("Not 0-9, . or e: {c}"),
         }
@@ -187,10 +228,13 @@ impl Lex {
         Ok(())
     }
 
-    fn lex_float(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_float(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         let c = match char::from_str(gr) {
             Ok(c) => Ok(c),
-            Err(e) => Err(LexError::InvalidToken(gr.into())),
+            Err(e) => Err(LexError {
+                kind: LexErrorKind::InvalidToken(gr.into()),
+                pos,
+            }),
         }?;
 
         match c {
@@ -206,11 +250,15 @@ impl Lex {
             }
             _ => {
                 self.state = LexState::Init;
-                self.tokens.push(TokenType::Float(
-                    f64::from_str(&self.curr_token).map_err(|e| LexError::ParseFloat(e))?,
-                ));
+                self.tokens
+                    .push(TokenType::Float(f64::from_str(&self.curr_token).map_err(
+                        |e| LexError {
+                            kind: LexErrorKind::ParseFloat(e),
+                            pos,
+                        },
+                    )?));
                 self.curr_token.clear();
-                return self.lex_init(gr);
+                return self.lex_init(gr, pos);
                 // return Ok(());
             }
         }
@@ -218,10 +266,13 @@ impl Lex {
         Ok(())
     }
 
-    fn lex_int_exponent(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_int_exponent(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         let c = match char::from_str(gr) {
             Ok(c) => Ok(c),
-            Err(e) => Err(LexError::InvalidToken(gr.into())),
+            Err(e) => Err(LexError {
+                kind: LexErrorKind::InvalidToken(gr.into()),
+                pos,
+            }),
         }?;
 
         match c {
@@ -235,37 +286,50 @@ impl Lex {
                 assert!(!self.curr_token.is_empty());
                 // no digits after 'e'
                 if self.curr_token.chars().rev().next().unwrap() == 'e' {
-                    return Err(LexError::InvalidToken(std::mem::take(&mut self.curr_token)));
+                    return Err(LexError {
+                        kind: LexErrorKind::InvalidToken(std::mem::take(&mut self.curr_token)),
+                        pos,
+                    });
                 }
 
                 self.state = LexState::Init;
                 self.tokens
-                    .push(TokenType::Int(Self::int_from_str(&self.curr_token)?));
+                    .push(TokenType::Int(Self::int_from_str(&self.curr_token, pos)?));
                 self.curr_token.clear();
-                return self.lex_init(gr);
+                return self.lex_init(gr, pos);
             }
         }
 
         Ok(())
     }
 
-    fn lex_float_exponent(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_float_exponent(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         let c = match char::from_str(gr) {
             Ok(c) => Ok(c),
-            Err(e) => Err(LexError::InvalidToken(gr.into())),
+            Err(e) => Err(LexError {
+                kind: LexErrorKind::InvalidToken(gr.into()),
+                pos,
+            }),
         }?;
 
         if c.is_ascii_whitespace() {
             assert!(!self.curr_token.is_empty());
             // no digits after 'e'
             if self.curr_token.chars().rev().next().unwrap() == 'e' {
-                return Err(LexError::InvalidToken(std::mem::take(&mut self.curr_token)));
+                return Err(LexError {
+                    kind: LexErrorKind::InvalidToken(std::mem::take(&mut self.curr_token)),
+                    pos,
+                });
             }
 
             self.state = LexState::Init;
-            self.tokens.push(TokenType::Float(
-                f64::from_str(&self.curr_token).map_err(|e| LexError::ParseFloat(e))?,
-            ));
+            self.tokens
+                .push(TokenType::Float(f64::from_str(&self.curr_token).map_err(
+                    |e| LexError {
+                        kind: LexErrorKind::ParseFloat(e),
+                        pos,
+                    },
+                )?));
             self.curr_token.clear();
             return Ok(());
         }
@@ -278,14 +342,17 @@ impl Lex {
                 // discard
             }
             _ => {
-                return Err(LexError::InvalidToken(c.into()));
+                return Err(LexError {
+                    kind: LexErrorKind::InvalidToken(c.into()),
+                    pos,
+                });
             }
         }
 
         Ok(())
     }
 
-    fn lex_lit_str(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_lit_str(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         match char::from_str(gr) {
             Ok('"') => {
                 self.state = LexState::Init;
@@ -304,7 +371,7 @@ impl Lex {
         Ok(())
     }
 
-    fn lex_escape(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_escape(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         match char::from_str(gr) {
             Ok('"') => {
                 self.curr_token.push('"');
@@ -322,7 +389,7 @@ impl Lex {
         Ok(())
     }
 
-    fn lex_less(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_less(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         match char::from_str(gr) {
             Ok('=') => {
                 self.tokens.push(TokenType::LessEq);
@@ -332,12 +399,12 @@ impl Lex {
             _ => {
                 self.tokens.push(TokenType::Less);
                 self.state = LexState::Init;
-                self.lex_init(gr)
+                self.lex_init(gr, pos)
             }
         }
     }
 
-    fn lex_greater(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_greater(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         match char::from_str(gr) {
             Ok('=') => {
                 self.tokens.push(TokenType::GreaterEq);
@@ -347,15 +414,18 @@ impl Lex {
             _ => {
                 self.tokens.push(TokenType::Greater);
                 self.state = LexState::Init;
-                self.lex_init(gr)
+                self.lex_init(gr, pos)
             }
         }
     }
 
     /// At the moment, can only be followed by "=". Even whitespaces are not valid.
-    fn lex_colon(&mut self, gr: &str) -> Result<(), LexError> {
+    fn lex_colon(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         if gr != "=" {
-            return Err(LexError::InvalidToken(gr.into()));
+            return Err(LexError {
+                kind: LexErrorKind::InvalidToken(gr.into()),
+                pos,
+            });
         }
         self.tokens.push(TokenType::ColonEq);
 
@@ -374,28 +444,41 @@ impl Lex {
     }
 
     /// So, according to Rust's u64::from_str, 12e3 is not a valid integer.
-    fn int_from_str(s: &str) -> Result<u64, LexError> {
+    fn int_from_str(s: &str, pos: Pos) -> Result<u64, LexError> {
         let e_idx = s.find('e');
 
         if let Some(idx) = e_idx {
             let lhs = &s[..idx];
             let rhs = &s[idx + 1..];
 
-            let lhs = u64::from_str(lhs).map_err(|e| LexError::ParseInt(e))?;
+            let lhs = u64::from_str(lhs).map_err(|e| LexError {
+                kind: LexErrorKind::ParseInt(e),
+                pos,
+            })?;
             let rhs = u64::from_str(rhs)
-                .map_err(|e| LexError::ParseInt(e))
+                .map_err(|e| LexError {
+                    kind: LexErrorKind::ParseInt(e),
+                    pos,
+                })
                 .and_then(|pow| {
-                    10u64
-                        .checked_pow(pow as u32)
-                        .ok_or_else(|| LexError::Overflow(s.into()))
+                    10u64.checked_pow(pow as u32).ok_or_else(|| LexError {
+                        kind: LexErrorKind::Overflow(s.into()),
+                        pos,
+                    })
                 })?;
             if let Some(ret) = lhs.checked_mul(rhs) {
                 Ok(ret)
             } else {
-                Err(LexError::Overflow(s.into()))
+                Err(LexError {
+                    kind: LexErrorKind::Overflow(s.into()),
+                    pos,
+                })
             }
         } else {
-            u64::from_str(s).map_err(|e| LexError::ParseInt(e))
+            u64::from_str(s).map_err(|e| LexError {
+                kind: LexErrorKind::ParseInt(e),
+                pos,
+            })
         }
     }
 }
@@ -477,7 +560,13 @@ enum LexState {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum LexError {
+pub struct LexError {
+    kind: LexErrorKind,
+    pos: Pos,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum LexErrorKind {
     InvalidToken(String),
     ParseInt(ParseIntError),
     ParseFloat(ParseFloatError),
