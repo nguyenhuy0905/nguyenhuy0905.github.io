@@ -27,6 +27,12 @@ pub struct Pos {
     column: usize,
 }
 
+impl std::fmt::Display for Pos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{}:{}", self.line, self.column)
+    }
+}
+
 impl Lex {
     pub fn new() -> Self {
         Self::default()
@@ -598,6 +604,20 @@ pub enum LexErrorKind {
     Overflow(String),
     UnclosedStr,
 }
+
+impl std::fmt::Display for LexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match &self.kind {
+            LexErrorKind::InvalidToken(s) => write!(f, "{}: invalid token {s}", self.pos),
+            LexErrorKind::ParseInt(e) => write!(f, "{}: int parsing, {e}", self.pos),
+            LexErrorKind::ParseFloat(e) => write!(f, "{}: float parsing, {e}", self.pos),
+            LexErrorKind::Overflow(s) => write!(f, "{}: numerical value overflow {s}", self.pos),
+            LexErrorKind::UnclosedStr => write!(f, "{}: unclosed string", self.pos),
+        }
+    }
+}
+
+impl std::error::Error for LexError {}
 
 #[cfg(test)]
 mod test {
