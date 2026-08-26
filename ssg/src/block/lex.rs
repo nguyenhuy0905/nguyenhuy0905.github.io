@@ -12,8 +12,13 @@ use unicode_segmentation::UnicodeSegmentation;
 /// start/end of the block that errs is.
 pub struct Lex {
     pub(in crate::block) tokens: Vec<TokenType>,
+    pub(in crate::block) positions: Vec<Pos>,
     state: LexState,
     curr_token: String,
+    // TODO: some places I use `pos` as the position for more-than-1-character-long tokens, I need
+    // to change to `curr_pos`...
+    // halfway there...
+    curr_pos: Pos,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -78,21 +83,24 @@ impl Lex {
             LexState::Init => {}
             LexState::Id => {
                 if let Some(kw) = Self::check_for_keyword(&self.curr_token) {
-                    self.tokens.push(kw);
+                    self.add_token(kw, self.curr_pos);
                 } else {
-                    self.tokens
-                        .push(TokenType::Id(String::from_iter(self.curr_token.drain(..))));
+                    let tok = TokenType::Id(String::from_iter(self.curr_token.drain(..)));
+                    self.add_token(tok, self.curr_pos);
                 }
             }
             LexState::Int | LexState::IntExponent => {
                 println!("{}", self.curr_token);
-                self.tokens.push(TokenType::Int(
-                    Self::int_from_str(&self.curr_token, pos).unwrap(),
-                ));
+                self.add_token(
+                    TokenType::Int(Self::int_from_str(&self.curr_token, self.curr_pos).unwrap()),
+                    self.curr_pos,
+                );
             }
             LexState::Float | LexState::FloatExponent => {
-                self.tokens
-                    .push(TokenType::Float(f64::from_str(&self.curr_token).unwrap()));
+                self.add_token(
+                    TokenType::Float(f64::from_str(&self.curr_token).unwrap()),
+                    self.curr_pos,
+                );
             }
             LexState::LitStr | LexState::Escape => {
                 return Err(LexError {
@@ -101,10 +109,10 @@ impl Lex {
                 });
             }
             LexState::Less => {
-                self.tokens.push(TokenType::Less);
+                self.add_token(TokenType::Less, pos);
             }
             LexState::Greater => {
-                self.tokens.push(TokenType::Greater);
+                self.add_token(TokenType::Greater, pos);
             }
             LexState::Colon => {
                 return Err(LexError {
@@ -113,7 +121,7 @@ impl Lex {
                 });
             }
         }
-        self.tokens.push(TokenType::Eof);
+        self.add_token(TokenType::Eof, pos);
         Ok(())
     }
 
@@ -125,33 +133,42 @@ impl Lex {
             assert!(self.curr_token.is_empty(), "{}", self.curr_token);
             self.state = LexState::Id;
             self.curr_token.push_str(gr);
+            self.curr_pos = pos;
             return Ok(());
         }
         if let Ok(c) = char::from_str(gr) {
             match c {
-                '"' => self.state = LexState::LitStr,
-                '=' => self.tokens.push(TokenType::Eq),
-                ':' => self.state = LexState::Colon,
-                ';' => self.tokens.push(TokenType::Semicolon),
+                '"' => {
+                    self.state = LexState::LitStr;
+                    self.curr_pos = pos;
+                }
+                '=' => self.add_token(TokenType::Eq, pos),
+                ':' => {
+                    self.state = LexState::Colon;
+                    self.curr_pos = pos;
+                }
+                ';' => self.add_token(TokenType::Semicolon, pos),
                 '0'..='9' => {
                     self.curr_token.push(c);
                     self.state = LexState::Int;
+                    self.curr_pos = pos;
                 }
                 '.' => {
                     self.curr_token.push(c);
                     self.state = LexState::Float;
+                    self.curr_pos = pos;
                 }
-                '+' => self.tokens.push(TokenType::Plus),
-                '-' => self.tokens.push(TokenType::Minus),
-                '*' => self.tokens.push(TokenType::Star),
-                '/' => self.tokens.push(TokenType::Slash),
-                '(' => self.tokens.push(TokenType::LParen),
-                ')' => self.tokens.push(TokenType::RParen),
-                '{' => self.tokens.push(TokenType::LBrace),
-                '}' => self.tokens.push(TokenType::RBrace),
+                '+' => self.add_token(TokenType::Plus, pos),
+                '-' => self.add_token(TokenType::Minus, pos),
+                '*' => self.add_token(TokenType::Star, pos),
+                '/' => self.add_token(TokenType::Slash, pos),
+                '(' => self.add_token(TokenType::LParen, pos),
+                ')' => self.add_token(TokenType::RParen, pos),
+                '{' => self.add_token(TokenType::LBrace, pos),
+                '}' => self.add_token(TokenType::RBrace, pos),
                 '<' => todo!("Add a less-than state, 'cuz <= exists"),
-                '>' => todo!("Add a less-than state, 'cuz >= exists"),
-                '#' => self.tokens.push(TokenType::Pound),
+                '>' => todo!("Add a greater-than state, 'cuz >= exists"),
+                '#' => self.add_token(TokenType::Pound, pos),
                 _ => {
                     return Err(LexError {
                         kind: LexErrorKind::InvalidToken(String::from(c)),
@@ -175,12 +192,13 @@ impl Lex {
         assert!(!self.curr_token.is_empty());
         match Self::check_for_keyword(&self.curr_token) {
             Some(kw) => {
-                self.tokens.push(kw);
+                self.add_token(kw, self.curr_pos);
                 self.curr_token.clear();
             }
-            None => self
-                .tokens
-                .push((TokenType::Id(String::from_iter(self.curr_token.drain(..))))),
+            None => {
+                let tok = TokenType::Id(String::from_iter(self.curr_token.drain(..)));
+                self.add_token(tok, self.curr_pos);
+            }
         }
         self.state = LexState::Init;
         self.lex_init(gr, pos)
@@ -191,7 +209,7 @@ impl Lex {
             Ok(c) => Ok(c),
             Err(e) => Err(LexError {
                 kind: LexErrorKind::InvalidToken(gr.into()),
-                pos,
+                pos: self.curr_pos,
             }),
         }?;
 
@@ -212,17 +230,16 @@ impl Lex {
             }
             _ => {
                 self.state = LexState::Init;
-                self.tokens
-                    .push(TokenType::Int(u64::from_str(&self.curr_token).map_err(
-                        |e| LexError {
-                            kind: LexErrorKind::ParseInt(e),
-                            pos,
-                        },
-                    )?));
+                self.add_token(
+                    TokenType::Int(u64::from_str(&self.curr_token).map_err(|e| LexError {
+                        kind: LexErrorKind::ParseInt(e),
+                        pos: self.curr_pos,
+                    })?),
+                    self.curr_pos,
+                );
                 self.curr_token.clear();
                 return self.lex_init(gr, pos);
-                // return Ok(());
-            } // _ => unreachable!("Not 0-9, . or e: {c}"),
+            }
         }
 
         Ok(())
@@ -233,7 +250,7 @@ impl Lex {
             Ok(c) => Ok(c),
             Err(e) => Err(LexError {
                 kind: LexErrorKind::InvalidToken(gr.into()),
-                pos,
+                pos: self.curr_pos,
             }),
         }?;
 
@@ -250,13 +267,13 @@ impl Lex {
             }
             _ => {
                 self.state = LexState::Init;
-                self.tokens
-                    .push(TokenType::Float(f64::from_str(&self.curr_token).map_err(
-                        |e| LexError {
-                            kind: LexErrorKind::ParseFloat(e),
-                            pos,
-                        },
-                    )?));
+                self.add_token(
+                    TokenType::Float(f64::from_str(&self.curr_token).map_err(|e| LexError {
+                        kind: LexErrorKind::ParseFloat(e),
+                        pos: self.curr_pos,
+                    })?),
+                    self.curr_pos,
+                );
                 self.curr_token.clear();
                 return self.lex_init(gr, pos);
                 // return Ok(());
@@ -271,7 +288,7 @@ impl Lex {
             Ok(c) => Ok(c),
             Err(e) => Err(LexError {
                 kind: LexErrorKind::InvalidToken(gr.into()),
-                pos,
+                pos: self.curr_pos,
             }),
         }?;
 
@@ -293,10 +310,12 @@ impl Lex {
                 }
 
                 self.state = LexState::Init;
-                self.tokens
-                    .push(TokenType::Int(Self::int_from_str(&self.curr_token, pos)?));
+                self.add_token(
+                    TokenType::Int(Self::int_from_str(&self.curr_token, self.curr_pos)?),
+                    self.curr_pos,
+                );
                 self.curr_token.clear();
-                return self.lex_init(gr, pos);
+                return self.lex_init(gr, self.curr_pos);
             }
         }
 
@@ -323,13 +342,13 @@ impl Lex {
             }
 
             self.state = LexState::Init;
-            self.tokens
-                .push(TokenType::Float(f64::from_str(&self.curr_token).map_err(
-                    |e| LexError {
-                        kind: LexErrorKind::ParseFloat(e),
-                        pos,
-                    },
-                )?));
+            self.add_token(
+                TokenType::Float(f64::from_str(&self.curr_token).map_err(|e| LexError {
+                    kind: LexErrorKind::ParseFloat(e),
+                    pos,
+                })?),
+                self.curr_pos,
+            );
             self.curr_token.clear();
             return Ok(());
         }
@@ -356,9 +375,8 @@ impl Lex {
         match char::from_str(gr) {
             Ok('"') => {
                 self.state = LexState::Init;
-                self.tokens.push(TokenType::LitStr(String::from_iter(
-                    self.curr_token.drain(..),
-                )));
+                let litstr = String::from_iter(self.curr_token.drain(..));
+                self.add_token(TokenType::LitStr(litstr), self.curr_pos);
                 return Ok(());
             }
             Ok('\\') => {
@@ -392,12 +410,12 @@ impl Lex {
     fn lex_less(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         match char::from_str(gr) {
             Ok('=') => {
-                self.tokens.push(TokenType::LessEq);
+                self.add_token(TokenType::LessEq, pos);
                 self.state = LexState::Init;
                 Ok(())
             }
             _ => {
-                self.tokens.push(TokenType::Less);
+                self.add_token(TokenType::Less, pos);
                 self.state = LexState::Init;
                 self.lex_init(gr, pos)
             }
@@ -407,12 +425,12 @@ impl Lex {
     fn lex_greater(&mut self, gr: &str, pos: Pos) -> Result<(), LexError> {
         match char::from_str(gr) {
             Ok('=') => {
-                self.tokens.push(TokenType::GreaterEq);
+                self.add_token(TokenType::GreaterEq, self.curr_pos);
                 self.state = LexState::Init;
                 Ok(())
             }
             _ => {
-                self.tokens.push(TokenType::Greater);
+                self.add_token(TokenType::Greater, self.curr_pos);
                 self.state = LexState::Init;
                 self.lex_init(gr, pos)
             }
@@ -427,7 +445,7 @@ impl Lex {
                 pos,
             });
         }
-        self.tokens.push(TokenType::ColonEq);
+        self.add_token(TokenType::ColonEq, self.curr_pos);
 
         Ok(())
     }
@@ -481,14 +499,21 @@ impl Lex {
             })
         }
     }
+
+    fn add_token(&mut self, tok: TokenType, pos: Pos) {
+        self.tokens.push(tok);
+        self.positions.push(pos);
+    }
 }
 
 impl Default for Lex {
     fn default() -> Self {
         Self {
             tokens: Vec::new(),
+            positions: Vec::new(),
             state: LexState::Init,
             curr_token: String::new(),
+            curr_pos: Pos { line: 0, column: 0 },
         }
     }
 }
@@ -592,6 +617,22 @@ mod test {
                 TokenType::Eof,
             ]
         );
+        assert_eq!(
+            lex.positions,
+            [
+                Pos { line: 1, column: 1 },
+                Pos { line: 1, column: 7 },
+                Pos { line: 1, column: 9 },
+                Pos {
+                    line: 1,
+                    column: 16
+                },
+                Pos {
+                    line: 1,
+                    column: 16
+                }
+            ]
+        );
     }
     #[test]
     fn keyword_detection() {
@@ -605,6 +646,21 @@ mod test {
                 TokenType::LitStr(String::from("hello")),
                 TokenType::Semicolon,
                 TokenType::Eof,
+            ]
+        );
+        assert_eq!(
+            lex.positions,
+            [
+                Pos { line: 1, column: 1 },
+                Pos { line: 1, column: 7 },
+                Pos {
+                    line: 1,
+                    column: 14
+                },
+                Pos {
+                    line: 1,
+                    column: 14
+                }
             ]
         );
     }
@@ -627,6 +683,37 @@ mod test {
                 TokenType::Eof,
             ]
         );
+        assert_eq!(
+            lex.positions,
+            [
+                Pos { line: 1, column: 1 },
+                Pos { line: 1, column: 5 },
+                Pos {
+                    line: 1,
+                    column: 10
+                },
+                Pos {
+                    line: 1,
+                    column: 15
+                },
+                Pos {
+                    line: 1,
+                    column: 22
+                },
+                Pos {
+                    line: 1,
+                    column: 33
+                },
+                Pos {
+                    line: 1,
+                    column: 39
+                },
+                Pos {
+                    line: 1,
+                    column: 42
+                },
+            ]
+        );
     }
     #[test]
     fn parse_expr() {
@@ -640,6 +727,15 @@ mod test {
                 TokenType::Plus,
                 TokenType::Float(2.0),
                 TokenType::Eof,
+            ]
+        );
+        assert_eq!(
+            lex.positions,
+            [
+                Pos { line: 1, column: 1 },
+                Pos { line: 1, column: 4 },
+                Pos { line: 1, column: 5 },
+                Pos { line: 1, column: 7 }
             ]
         );
     }
