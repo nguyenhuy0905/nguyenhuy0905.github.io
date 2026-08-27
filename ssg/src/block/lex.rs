@@ -14,17 +14,15 @@ pub struct Lex {
     pub(in crate::block) tokens: Vec<TokenType>,
     pub(in crate::block) positions: Vec<Pos>,
     state: LexState,
+    /// Only really used when ending the Comment state
     curr_token: String,
-    // TODO: some places I use `pos` as the position for more-than-1-character-long tokens, I need
-    // to change to `curr_pos`...
-    // halfway there...
     curr_pos: Pos,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Pos {
-    line: usize,
-    column: usize,
+    pub line: usize,
+    pub column: usize,
 }
 
 impl std::fmt::Display for Pos {
@@ -40,53 +38,55 @@ impl Lex {
 
     pub fn lex(&mut self, input: &str) -> Result<(), LexError> {
         let mut pos = Pos { line: 0, column: 0 };
-        for (lnum, cnum, gr) in input
+        for (lnum, line) in input
             .lines()
             .enumerate()
-            .map(|(lnum, line)| {
-                line.grapheme_indices(true)
-                    .map(move |(cnum, gr)| (lnum + 1, cnum + 1, gr))
-            })
-            .flatten()
+            .map(|(lnum, line)| (lnum + 1, line))
         {
-            pos = Pos {
-                line: lnum,
-                column: cnum,
-            };
-            match self.state {
-                LexState::Init => {
-                    self.lex_init(gr, pos)?;
+            if matches!(self.state, LexState::Comment) {
+                self.state = LexState::Init;
+            }
+            for (cnum, gr) in line.grapheme_indices(true).map(|(cnum, gr)| (cnum + 1, gr)) {
+                pos = Pos {
+                    line: lnum,
+                    column: cnum,
+                };
+                match self.state {
+                    LexState::Init => {
+                        self.lex_init(gr, pos)?;
+                    }
+                    LexState::Id => {
+                        self.lex_id(gr, pos)?;
+                    }
+                    LexState::Int => {
+                        self.lex_int(gr, pos)?;
+                    }
+                    LexState::Float => {
+                        self.lex_float(gr, pos)?;
+                    }
+                    LexState::IntExponent => {
+                        self.lex_int_exponent(gr, pos)?;
+                    }
+                    LexState::FloatExponent => {
+                        self.lex_float_exponent(gr, pos)?;
+                    }
+                    LexState::LitStr => {
+                        self.lex_lit_str(gr, pos)?;
+                    }
+                    LexState::Escape => {
+                        self.lex_escape(gr, pos)?;
+                    }
+                    LexState::Less => self.lex_less(gr, pos)?,
+                    LexState::Greater => self.lex_greater(gr, pos)?,
+                    LexState::Colon => self.lex_colon(gr, pos)?,
+                    LexState::Comment => {}
                 }
-                LexState::Id => {
-                    self.lex_id(gr, pos)?;
-                }
-                LexState::Int => {
-                    self.lex_int(gr, pos)?;
-                }
-                LexState::Float => {
-                    self.lex_float(gr, pos)?;
-                }
-                LexState::IntExponent => {
-                    self.lex_int_exponent(gr, pos)?;
-                }
-                LexState::FloatExponent => {
-                    self.lex_float_exponent(gr, pos)?;
-                }
-                LexState::LitStr => {
-                    self.lex_lit_str(gr, pos)?;
-                }
-                LexState::Escape => {
-                    self.lex_escape(gr, pos)?;
-                }
-                LexState::Less => self.lex_less(gr, pos)?,
-                LexState::Greater => self.lex_greater(gr, pos)?,
-                LexState::Colon => self.lex_colon(gr, pos)?,
             }
         }
 
         // not yet done...
         match self.state {
-            LexState::Init => {}
+            LexState::Init | LexState::Comment => {}
             LexState::Id => {
                 if let Some(kw) = Self::check_for_keyword(&self.curr_token) {
                     self.add_token(kw, self.curr_pos);
@@ -153,6 +153,7 @@ impl Lex {
                     self.state = LexState::Colon;
                     self.curr_pos = pos;
                 }
+                ',' => self.add_token(TokenType::Comma, pos),
                 ';' => self.add_token(TokenType::Semicolon, pos),
                 '0'..='9' => {
                     self.curr_token.push(c);
@@ -172,9 +173,14 @@ impl Lex {
                 ')' => self.add_token(TokenType::RParen, pos),
                 '{' => self.add_token(TokenType::LBrace, pos),
                 '}' => self.add_token(TokenType::RBrace, pos),
+                '[' => self.add_token(TokenType::LBrack, pos),
+                ']' => self.add_token(TokenType::RBrack, pos),
                 '<' => todo!("Add a less-than state, 'cuz <= exists"),
                 '>' => todo!("Add a greater-than state, 'cuz >= exists"),
                 '#' => self.add_token(TokenType::Pound, pos),
+                '!' => {
+                    self.state = LexState::Comment;
+                }
                 _ => {
                     return Err(LexError {
                         kind: LexErrorKind::InvalidToken(String::from(c)),
@@ -420,6 +426,11 @@ impl Lex {
                 self.state = LexState::Init;
                 Ok(())
             }
+            Ok('<') => {
+                self.add_token(TokenType::LessLess, pos);
+                self.state = LexState::Init;
+                Ok(())
+            }
             _ => {
                 self.add_token(TokenType::Less, pos);
                 self.state = LexState::Init;
@@ -432,6 +443,11 @@ impl Lex {
         match char::from_str(gr) {
             Ok('=') => {
                 self.add_token(TokenType::GreaterEq, self.curr_pos);
+                self.state = LexState::Init;
+                Ok(())
+            }
+            Ok('>') => {
+                self.add_token(TokenType::GreaterGreater, self.curr_pos);
                 self.state = LexState::Init;
                 Ok(())
             }
@@ -463,6 +479,9 @@ impl Lex {
             "and" => Some(TokenType::Yield),
             "or" => Some(TokenType::Yield),
             "not" => Some(TokenType::Yield),
+            "if" => Some(TokenType::If),
+            "else" => Some(TokenType::Else),
+            "while" => Some(TokenType::While),
             _ => None,
         }
     }
@@ -530,48 +549,70 @@ pub enum TokenType {
     LitStr(String),
     Int(u64),
     Float(f64),
-    // symbols
-    // :=
+    /// symbols
+    /// :=
     ColonEq,
-    // =
+    /// =
     Eq,
-    // ;
+    /// ,
+    Comma,
+    /// ;
     Semicolon,
-    // +
+    /// +
     Plus,
-    // -
+    /// -
     Minus,
-    // *
+    /// *
     Star,
-    // /
+    /// /
     Slash,
-    // (
+    /// &
+    Amper,
+    /// |
+    Bar,
+    /// ^
+    Caret,
+    /// (
     LParen,
-    // )
+    /// )
     RParen,
-    // {
+    /// {
     LBrace,
-    // }
+    /// }
     RBrace,
-    // <
+    /// [
+    LBrack,
+    /// ]
+    RBrack,
+    /// <
     Less,
-    // >
+    /// <<
+    LessLess,
+    /// >
     Greater,
-    // <=
+    /// >
+    GreaterGreater,
+    /// <=
     LessEq,
-    // >=
+    /// >=
     GreaterEq,
-    // #
+    /// #
     Pound,
     // keywords
-    // "yield"
+    /// "yield"
     Yield,
-    // "and"
+    /// "and"
     And,
-    // "or"
+    /// "or"
     Or,
-    // "not"
+    /// "not"
     Not,
+    /// "if"
+    If,
+    /// "else"
+    Else,
+    /// "while"
+    While,
     Eof,
 }
 
@@ -588,6 +629,7 @@ enum LexState {
     Colon,
     // During LitStr, meet a "\\"
     Escape,
+    Comment,
 }
 
 #[derive(Debug, PartialEq)]
@@ -757,6 +799,20 @@ mod test {
                 Pos { line: 1, column: 5 },
                 Pos { line: 1, column: 7 }
             ]
+        );
+    }
+    #[test]
+    fn comment() {
+        let test_str = "! 1+2=3\n\"hello\"";
+        let mut lex = Lex::new();
+        assert_eq!(lex.lex(test_str), Ok(()));
+        assert_eq!(
+            lex.tokens,
+            [TokenType::LitStr("hello".into()), TokenType::Eof]
+        );
+        assert_eq!(
+            lex.positions,
+            [Pos { line: 2, column: 1 }, Pos { line: 2, column: 7 }]
         );
     }
 }
