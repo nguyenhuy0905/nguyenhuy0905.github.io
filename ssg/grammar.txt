@@ -1,0 +1,22 @@
+comment -> "!"
+
+block -> stmt*
+stmt -> (yield | expr) ";"
+yield -> "yield" expr
+expr -> logic (idx | mem | call | defn | assign)?
+logic -> comp (("and" | "or") comp)+
+comp -> bit (("<" | ">" | "<=" | ">=") bit)+
+bit -> shift (("&" | "|") shift)+
+shift -> term (("<<" | ">>") term)+
+term -> fac (("+" | "-") fac)+
+fac -> un (("*" | "/") un)+
+un -> ("not" | "#" | "^") prim
+prim -> NUMBER | ID | STRING | "(" expr ")"
+      | arr | cond | "{" "{" block "}" "}"
+arr -> "[" (expr ("," expr)* ","?)? "]"
+cond -> "if" "(" expr ")" expr ("else" expr)?
+idx -> "[" expr "]"
+mem -> "." expr
+call -> "(" (expr, ("," expr)* ","?)? ")"
+defn -> ":=" expr
+assign -> "=" expr
