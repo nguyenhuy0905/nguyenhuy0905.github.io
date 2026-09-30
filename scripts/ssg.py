@@ -25,7 +25,7 @@ def process_file(f, vars):
 
 def process_variables(line: str, num: int, variables):
         # comment or some tag
-        if line.find('#') == 0 or line.find('<') == 0:
+        if line.find('#') == 0 or line.find('<!') == 0:
             return
         elems = line.split('=', maxsplit=1)
         if len(elems) < 2:
