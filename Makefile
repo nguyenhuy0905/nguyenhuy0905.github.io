@@ -9,7 +9,7 @@ index.html: template/header.html template/footer.html template/index.html templa
 blog/index.html: template/header.html template/footer.html template/blog/index.html
 	$(CMD) template/blog/index.html blog/index.html
 
-blog/dev: header footer template/blog/dev/1-database.html
+blog/dev: template/header.html template/footer.html template/blog/dev/1-database.html
 	$(CMD) template/blog/dev/1-database.html blog/dev/1-database.html
 
 .PHONY: format
