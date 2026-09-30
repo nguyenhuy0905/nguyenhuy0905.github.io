@@ -2,6 +2,23 @@ import sys
 from pathlib import Path
 from subprocess import Popen
 
+# Custom SSG?
+# a file-to-be-processed should have this format:
+# <!-- just so prettier doesn't try to collapse the key-value lines.
+# <!-- prettier-ignore -->
+# key1=value1
+# key2=value2 with spaces if you want
+# ...
+# 
+# <h1>your content referring to the key %key1%</h1>
+# The space in between the key-value list and the content is required.
+# syntax for key-value lines:
+# # lines starting with # are considered comments. No spaces before the #
+# you can escape the percentage sign with \%. Important when writing content.
+# <!-- normal HTML comments are ignored as well -->
+# you can have spaces=in key names
+# but I don't=like that personally
+
 def process_file(f, vars):
     variables = dict([x for x in vars.items()])
     is_processing_vars = True
