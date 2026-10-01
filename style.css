@@ -75,3 +75,18 @@ a.nav-a {
 p.copyright {
   color: var(--copyright);
 }
+p.proj-desc {
+  margin: 0 auto;
+}
+p + ul {
+  margin-top: 0;
+}
+ul.proj-list>li {
+  margin-bottom: 1em;
+}
+ul.proj-list>li:last-child {
+  margin-bottom: 0;
+}
+p + ul li:first-child {
+  margin-top: 0;
+}
