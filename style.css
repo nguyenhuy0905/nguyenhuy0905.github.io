@@ -18,15 +18,12 @@ header {
   font-size: 1.5rem;
   font-style: italic;
   margin: 0em;
-  /* compensate the 1.5x font. */
-  margin-bottom: calc(0.5em / 1.5);
 }
 body {
   padding: 0em 1%;
-  margin: 0;
 }
 footer {
-  margin-top: 0.5em;
+  margin: 0;
   margin-bottom: 1em;
   padding: 1em;
   background-color: var(--bg);
@@ -35,6 +32,7 @@ footer {
 main {
   background-color: var(--bg);
   padding: 1em 2em;
+  margin: 0.5em 0;
 }
 h1 {
   color: var(--mauve);
