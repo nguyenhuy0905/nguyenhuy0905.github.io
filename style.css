@@ -17,21 +17,24 @@ html {
 header {
   font-size: 1.5rem;
   font-style: italic;
-  margin: 0em auto;
+  margin: 0em;
+  /* compensate the 1.5x font. */
+  margin-bottom: calc(0.5em / 1.5);
 }
 body {
   padding: 0em 1%;
   margin: 0;
 }
 footer {
-  margin: 0.5em 0;
+  margin-top: 0.5em;
+  margin-bottom: 1em;
   padding: 1em;
   background-color: var(--bg);
+  border-radius: 0em 0em 1em 1em;
 }
 main {
   background-color: var(--bg);
   padding: 1em 2em;
-  border-radius: 2em 2em 0em 0em;
 }
 h1 {
   color: var(--mauve);
@@ -49,11 +52,12 @@ a {
 nav {
   background-color: var(--bg);
   padding: 1em auto;
-  border-radius: 2em;
+  border-radius: 1em 1em 0 0;
 }
 nav ul {
   list-style: none;
   letter-spacing: 0;
+  margin: 0;
 }
 nav ul li {
   display: inline-block;
