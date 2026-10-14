@@ -1,7 +1,7 @@
 CMD:=python3 scripts/ssg.py
 CONTENT_FILES:=index.html blog/index.html
 
-DEV_BLOG_NAMES:=index 1-database
+DEV_BLOG_NAMES:=index 1-database 2-ssg
 DEV_BLOG_FILES:=$(patsubst %,blog/dev/%.html,$(DEV_BLOG_NAMES))
 DEV_BLOG_INPUTS:=$(patsubst %,template/%,$(DEV_BLOG_FILES))
 

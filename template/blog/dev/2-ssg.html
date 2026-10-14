@@ -1,0 +1,126 @@
+<!--prettier-ignore-->
+title=The static site generator for this site
+blog_title=The static site generator for this site
+meta=!template/meta.html
+header=#template/header.html
+footer=#template/footer.html
+date=2026-10-14
+blog_header=!template/blog_title.html
+
+<!doctype html>
+%meta%
+<body>
+  %header%
+  <main>
+    <article>
+      %blog_header%
+      <section>
+        <h3>What it is</h3>
+        <p>
+          Just an (at the time of writing) a-bit-more-than-100-line Python
+          script. It's located below the root of this site, specifically, under
+          <a href="/scripts/ssg.py">/scripts/ssg.py</a>.
+        </p>
+        <h3>Why don't you just use [INSERT SSG NAME HERE]?</h3>
+        <p>
+          I could have, yes. But I don't need almost <em>all</em> features. At
+          the moment, all I need is including and processing some HTML
+          boilerplate, like <tt>meta</tt>, <tt>header</tt>, and <tt>footer</tt>.
+        </p>
+        <p>
+          Most importantly, I consider myself too "new" to web dev to use any of
+          those funny magic tools. I barely even know HTML and CSS. If something
+          on my site breaks or doesn't look right, I don't think I can easily
+          point out if it's due to my HTML/CSS being sloppy or my configuration
+          for the SSG not working.
+        </p>
+        <p>
+          To conclude, I want only one feature, and I want maximum control, so I
+          figured it wouldn't be too difficult to just make my own.
+        </p>
+        <h3>How does it work?</h3>
+        <h4>Key definition and usage</h4>
+        <p>The script can just be run like</p>
+        <p>
+          <tt>python3 scripts/ssg.py [template-file] [output-file]</tt>
+        </p>
+        <p>
+          And the template file is processed then put in the output location. If
+          I want to process a bunch of files, I can just use some
+          <tt><a href="/Makefile">Makefile</a></tt> magic. Of course, the
+          <tt>Makefile</tt> is also under the root of this site. Note that the
+          file assumes GNU Make.
+        </p>
+        <p>
+          Every template file starts with a list of key-values, followed by an
+          empty line, then followed by the HTML content.
+        </p>
+        <p>
+          In the key-value list, each line defines a key and its value. The
+          format is <tt>key=value</tt>. To save me the trouble of trimming
+          whitespaces, any spaces before or after the equal sign are the key
+          name or the value. So, <tt>foo = bar</tt> defines a key "foo " with
+          value " bar". Notice the trailing and leading spaces. Also, to avoid
+          Prettier from messing up with the format, I do allow a line to start
+          with opening HTML tag <tt>&lt;</tt>. Practically speaking, this allows
+          me to put <tt>&lt;!-- prettier-ignore --&gt;</tt> before the key-value
+          list.
+        </p>
+        <p>
+          In the HTML content, the defined keys can be expanded by surrounding
+          its name with percentage signs, so, <tt>\%key\%</tt> expands
+          <tt>key</tt> to its value. You can escape a percentage sign with a
+          backslash <tt>\\\%</tt>.
+        </p>
+        <h4>Value expansion rules</h4>
+        <p>
+          I figured quite quickly that, a lot of keys will be quite large, so I
+          should put them in a file, and instruct the script to go to that file
+          and copy the content of the file as the value for the key. In that
+          case, prefix the file name with a pound <tt>#</tt>. For example:
+        </p>
+        <p>
+          <tt>footer_content=#template/footer.html</tt>
+        </p>
+        <p>
+          Sometimes, I also want the referred file to be processed as a template
+          file as well. What that means is, I want:
+        </p>
+        <ul>
+          <li>all the keys defined in that file to also be included,</li>
+          <li>
+            the processor, when processing that file, to use some already
+            defined keys,
+          </li>
+          <li>and of course, any reference to a keys to be expanded.</li>
+        </ul>
+        <p>
+          So, when the file name is preceded by an exclamation mark <tt>!</tt>,
+          the processor recursively walks in and process that file as well. Of
+          course, this introduces a few issues:
+        </p>
+        <ul>
+          <li>
+            Circular dependency will make the processor never stop. I just need
+            to be careful, right? So, no built-in mechanism to detect for now.
+          </li>
+          <li>The same key defined twice. I just let the processor err out.</li>
+        </ul>
+        <h3>This is kind of a bad SSG</h3>
+        <p>
+          Yes, and I won't deny that. You still have to put quite a bit of
+          boilerplate at the start of each file, circular dependency issues are
+          currently not checked, unintuitive necessity for at least one empty
+          line between the key-value definitions and the actual content. But
+          what could I ask for in a 100-line Python script?
+        </p>
+        <p>
+          Overall, it's served me well. And it's also quite fast, given the
+          language it's written in. Granted, the <tt>Makefile</tt> also helps a
+          lot here, so that I only need to build the parts that changed.
+        </p>
+      </section>
+    </article>
+  </main>
+  %footer%
+</body>
