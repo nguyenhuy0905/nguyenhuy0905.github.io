@@ -4,14 +4,15 @@
   --green: light-dark(#40a02b, #a6da95);
   --mauve: light-dark(#8839ef, #cba6f7);
   --blue: light-dark(#1e66f5, #89b4fa);
-  --color: light-dark(#4c4f69, #cdd6f4);
+  --pink: light-dark(#ea76cb, #f5c2e7);
+  --text: light-dark(#4c4f69, #cdd6f4);
   --bg: light-dark(#eff1f5, #1e1e2e);
-  --bg-dark: light-dark(#e6e9ef, #181825);
+  --backbg: light-dark(#e6e9ef, #181825);
   --copyright: light-dark(#6c6f85, #a6adc8);
 }
 html {
-  background-color: var(--bg-dark);
-  color: var(--color);
+  background-color: var(--backbg);
+  color: var(--text);
   font-size: 12px;
   max-width: 64em;
   /* seriously */
@@ -46,6 +47,9 @@ h2 {
 }
 h3 {
   color: var(--red);
+}
+h4 {
+  color: var(--pink);
 }
 a {
   color: var(--blue);
