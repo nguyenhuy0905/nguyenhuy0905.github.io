@@ -87,6 +87,8 @@ def process_line(line: str, variables):
         if is_escaping:        
             if c == '%':
                 ret += '%'
+            elif c == '\\':
+                ret += '\\'
             else:
                 ret += f"\\{c}"
             is_escaping = False
