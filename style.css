@@ -84,8 +84,8 @@ h1 a {
 a.nav-a {
   color: var(--mauve);
 }
-footer div.inner {
-  padding: 0 1em;
+footer + div.inner {
+  padding: 0 2em;
 }
 p.copyright {
   color: var(--copyright);
