@@ -71,6 +71,12 @@ nav ul li {
 nav ul li:first-child {
   padding-left: 0em;
 }
+address ul {
+  list-style: none;
+  letter-spacing: 0;
+  margin: 0;
+  padding: 0;
+}
 h1 a {
   color: var(--mauve);
   text-decoration: none;
@@ -78,7 +84,9 @@ h1 a {
 a.nav-a {
   color: var(--mauve);
 }
-
+footer div.inner {
+  padding: 0 1em;
+}
 p.copyright {
   color: var(--copyright);
 }
