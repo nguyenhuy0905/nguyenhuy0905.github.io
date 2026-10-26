@@ -21,7 +21,7 @@ $(DEV_BLOG_FILES): build/%: template/% template/header.html template/footer.html
 build/style.css: style.css
 	cp $< $@
 
-.PHONY: format
+.PHONY: format nuke
 format:
 	prettier -w $(CONTENT_FILES)
 
