@@ -31,7 +31,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      pages: write
+      id-token: write
     needs: build
 
     steps:
