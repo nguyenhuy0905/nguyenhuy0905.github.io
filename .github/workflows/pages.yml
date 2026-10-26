@@ -15,9 +15,9 @@ jobs:
 
       - name: Install python and make
         run: |
-          apt-get update
-          apt-get upgrade -y
-          apt-get install -y python3 make
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install -y python3 make
 
       - name: Build the site
         run: >
