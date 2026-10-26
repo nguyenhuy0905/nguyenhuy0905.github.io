@@ -10,10 +10,10 @@ all: build/index.html build/blog/index.html build/style.css
 build/index.html: template/header.html template/footer.html template/index.html template/index/content.html
 	$(CMD) template/index.html build/index.html
 
-build/blog/index.html: template/header.html template/footer.html template/blog/index.html
+build/blog/index.html: template/header.html template/footer.html template/blog/index.html build/blog/dev
 	$(CMD) template/blog/index.html build/blog/index.html
 
-blog/dev: $(DEV_BLOG_FILES)
+build/blog/dev: $(DEV_BLOG_FILES)
 
 $(DEV_BLOG_FILES): build/%: template/% template/header.html template/footer.html
 	$(CMD) $< $@
