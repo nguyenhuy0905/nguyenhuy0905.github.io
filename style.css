@@ -13,7 +13,6 @@
 html {
   background-color: var(--backbg);
   color: var(--text);
-  font-size: 12px;
   max-width: 64em;
   /* seriously */
   margin: 0 auto;
